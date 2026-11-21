@@ -6,5 +6,5 @@ import react from "@vitejs/plugin-react";
 // - base pour que les assets fonctionnent sur GitHub Pages
 export default defineConfig({
   plugins: [react()],
-  base: "/tasks-list/",
+  base: "/tasks-list-real-application_used/",
 });
