@@ -1,19 +1,34 @@
 <!doctype html>
-<html lang="en">
+<html lang="fr">
   <head>
-    <!-- Encodage des caractères -->
     <meta charset="UTF-8" />
-    <!-- Icône d'onglet (favicon) -->
-    <link rel="icon" type="image/svg+xml" href="/tasks-list-real-application_used/assets/favicon-BvGJHMBs.png" />
-    <!-- Rend la page responsive sur mobile -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TaskTool</title>
-    <script type="module" crossorigin src="/tasks-list-real-application_used/assets/index-DgpcFjcB.js"></script>
-    <link rel="stylesheet" crossorigin href="/tasks-list-real-application_used/assets/index-Bq8m8IEm.css">
+    <title>LovaTasks — Projets & tâches, simplement</title>
+    <meta name="description" content="LovaTasks, l'application Lova de gestion de projets et de tâches : tableaux kanban, glisser-déposer, projets partagés et assistant IA. Gratuit, sans compte obligatoire." />
+    <meta name="author" content="Lohan Vapaille — Lovaweb" />
+    <meta name="theme-color" content="#f28c28" />
+    <link rel="icon" type="image/png" href="/tasks-list-real-application_used/logo-lovatasks.png" />
+    <link rel="apple-touch-icon" href="/tasks-list-real-application_used/logo-lovatasks.png" />
+    <meta property="og:title" content="LovaTasks — une application Lova" />
+    <meta property="og:description" content="Gérez vos projets pro et perso : kanban, projets partagés, IA qui génère votre backlog." />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="fr_FR" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      // Applique le thème avant le rendu pour éviter un flash.
+      try {
+        var p = JSON.parse(localStorage.getItem("lovatasks:prefs") || "{}");
+        var t = p.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="/tasks-list-real-application_used/assets/index-CE5DHbtU.js"></script>
+    <link rel="stylesheet" crossorigin href="/tasks-list-real-application_used/assets/index-ocDNQCMY.css">
   </head>
   <body>
-    <!-- Point d'ancrage où React injecte l'application -->
+    <noscript>LovaTasks nécessite JavaScript.</noscript>
     <div id="root"></div>
-    <!-- Charge le point d'entrée JavaScript de l'application -->
   </body>
 </html>
