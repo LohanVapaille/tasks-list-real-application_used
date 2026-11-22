@@ -1,7 +1,9 @@
-import { LOVA_APPS } from "../config/lova";
+import { useLovaApps } from "../lib/lovaApps";
 import lovaLogo from "../assets/logo_lova.jpg";
 
-const Footer = ({ onOpen }) => (
+const Footer = ({ onOpen }) => {
+  const apps = useLovaApps().filter((a) => a.available && !a.current);
+  return (
   <footer className="footer">
     <div className="footer-brand">
       <img src={lovaLogo} alt="Lova" width="24" height="24" />
@@ -13,8 +15,8 @@ const Footer = ({ onOpen }) => (
     </div>
 
     <nav className="footer-apps" aria-label="Applications Lova">
-      {LOVA_APPS.filter((a) => !a.current).map((app) => (
-        <a key={app.id} href={app.url} target="_blank" rel="noopener">
+      {apps.map((app) => (
+        <a key={app.slug} href={app.url} target="_blank" rel="noopener">
           {app.name}
         </a>
       ))}
@@ -28,6 +30,7 @@ const Footer = ({ onOpen }) => (
       <span className="muted">© {new Date().getFullYear()} Lohan Vapaille</span>
     </nav>
   </footer>
-);
+  );
+};
 
 export default Footer;

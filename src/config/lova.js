@@ -3,33 +3,32 @@
 
 export const APP_NAME = "LovaTasks";
 
-// Applications Lova affichées dans le lanceur (icône 9 points).
-// `current: true` = l'application ouverte.
-export const LOVA_APPS = [
+// Slug de cette application dans la table `lova_apps` (back-office Lovaweb).
+export const APP_SLUG = "lovatasks";
+
+// API du back-office Lovaweb qui liste les applications (lanceur + footer).
+// En local : VITE_LOVA_API_URL=http://localhost/studio-web/public dans .env.development.local
+export const LOVA_API_URL = (import.meta.env.VITE_LOVA_API_URL || "https://lovaweb.fr").replace(/\/$/, "");
+
+// Liste de secours si l'API ne répond pas (même format que /api/lova-apps).
+export const LOVA_APPS_FALLBACK = [
   {
-    id: "lovaweb",
-    name: "LovaWeb",
-    url: "https://lovaweb.fr",
-    color: "#4338ca",
-    letter: "W",
-    description: "Sites & plateformes sur mesure",
-  },
-  {
-    id: "lovatrip",
+    slug: "lovatrip",
     name: "LovaTrip",
+    tagline: "Organiser son voyage rapidement avec l'IA",
     url: "https://lovatrip.com",
-    color: "#e06c00",
-    letter: "T",
-    description: "Organiser ses voyages",
+    accent_color: "#4f46e5",
+    monogram: "Tr",
+    is_available: true,
   },
   {
-    id: "lovatasks",
+    slug: "lovatasks",
     name: "LovaTasks",
+    tagline: "Projets & tâches",
     url: "https://lohanvapaille.github.io/tasks-list-real-application_used/",
-    color: "#f28c28",
-    letter: "✓",
-    description: "Projets & tâches",
-    current: true,
+    accent_color: "#e6a047",
+    monogram: "Ta",
+    is_available: true,
   },
 ];
 

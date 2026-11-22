@@ -1,12 +1,27 @@
 import { useEffect, useRef, useState } from "react";
-import { LOVA_APPS } from "../config/lova";
+import { useLovaApps } from "../lib/lovaApps";
 import lovaLogo from "../assets/logo_lova.jpg";
 import tasksLogo from "../assets/logo_lovatasks.png";
 
-const APP_LOGOS = { lovaweb: lovaLogo, lovatasks: tasksLogo };
+// Logos embarqués, utilisés si l'API ne fournit pas de logo.
+const LOCAL_LOGOS = { lovatasks: tasksLogo };
+
+const AppIcon = ({ app }) => {
+  const [broken, setBroken] = useState(false);
+  const src = (!broken && app.logo) || LOCAL_LOGOS[app.slug];
+  return src ? (
+    <img className="launcher-icon" src={src} alt="" onError={() => setBroken(true)} />
+  ) : (
+    <span className="launcher-icon" style={{ background: app.color }}>
+      {app.monogram}
+    </span>
+  );
+};
 
 // Lanceur des applications Lova (comme la grille "Applications Google").
+// La liste vient du back-office Lovaweb : voir src/lib/lovaApps.js.
 const AppLauncher = () => {
+  const apps = useLovaApps();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -50,27 +65,29 @@ const AppLauncher = () => {
             </div>
           </div>
           <div className="launcher-grid">
-            {LOVA_APPS.map((app) => (
-              <a
-                key={app.id}
-                href={app.url}
-                role="menuitem"
-                className={`launcher-app${app.current ? " current" : ""}`}
-                target={app.current ? undefined : "_blank"}
-                rel="noopener"
-                onClick={app.current ? (e) => { e.preventDefault(); setOpen(false); } : undefined}
-              >
-                {APP_LOGOS[app.id] ? (
-                  <img className="launcher-icon" src={APP_LOGOS[app.id]} alt="" />
-                ) : (
-                  <span className="launcher-icon" style={{ background: app.color }}>
-                    {app.letter}
-                  </span>
-                )}
-                <span className="launcher-name">{app.name}</span>
-                <span className="launcher-desc">{app.description}</span>
-              </a>
-            ))}
+            {apps.map((app) =>
+              app.current || app.available ? (
+                <a
+                  key={app.slug}
+                  href={app.current ? undefined : app.url}
+                  role="menuitem"
+                  className={`launcher-app${app.current ? " current" : ""}`}
+                  target={app.current ? undefined : "_blank"}
+                  rel="noopener"
+                  onClick={app.current ? (e) => { e.preventDefault(); setOpen(false); } : undefined}
+                >
+                  <AppIcon app={app} />
+                  <span className="launcher-name">{app.name}</span>
+                  <span className="launcher-desc">{app.description}</span>
+                </a>
+              ) : (
+                <div key={app.slug} className="launcher-app soon" aria-disabled="true">
+                  <AppIcon app={app} />
+                  <span className="launcher-name">{app.name}</span>
+                  <span className="launcher-desc">{app.statusLabel || "Bientôt"}</span>
+                </div>
+              ),
+            )}
           </div>
           <a className="launcher-foot" href="https://lovaweb.fr" target="_blank" rel="noopener">
             Découvrir l'écosystème Lova →

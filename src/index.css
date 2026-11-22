@@ -414,6 +414,13 @@ textarea {
 .launcher-app.current {
   background: var(--primary-soft);
 }
+.launcher-app.soon {
+  opacity: 0.55;
+  cursor: default;
+}
+.launcher-app.soon:hover {
+  background: none;
+}
 .launcher-icon {
   width: 46px;
   height: 46px;
