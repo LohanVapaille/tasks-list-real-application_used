@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth, useStore, useToast } from "../context/contexts";
 import { callFunction } from "../lib/api";
+import { HORIZONS, horizonOf, labelColor, normalizeLabel } from "../lib/tasks";
 import { PRIORITIES, formatDuration, uid } from "../lib/utils";
 import Modal from "./Modal";
 
-const EDITABLE = ["title", "description", "project_id", "status", "due_date", "priority", "labels", "checklist"];
+const EDITABLE = ["title", "description", "project_id", "status", "due_date", "priority", "horizon", "labels", "checklist"];
 
 const Timer = ({ task, onStart, onStop, locked, onUpgrade }) => {
   const [now, setNow] = useState(() => Date.now());
@@ -36,19 +37,31 @@ const TaskModal = ({ taskId, onClose, onOpen }) => {
   const { user, isPro, refreshProfile } = useAuth();
   const { toast } = useToast();
   const task = tasks.find((t) => t.id === taskId);
-  const [draft, setDraft] = useState(() => (task ? Object.fromEntries(EDITABLE.map((k) => [k, task[k]])) : null));
+  const [draft, setDraft] = useState(() =>
+    task ? { ...Object.fromEntries(EDITABLE.map((k) => [k, task[k]])), horizon: horizonOf(task) } : null,
+  );
   const [labelInput, setLabelInput] = useState("");
   const [itemInput, setItemInput] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
 
+  // Étiquettes déjà utilisées ailleurs, pour l'autocomplétion.
+  const knownLabels = useMemo(() => {
+    const counts = new Map();
+    tasks.forEach((t) => t.labels.forEach((l) => counts.set(l, (counts.get(l) ?? 0) + 1)));
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([l]) => l);
+  }, [tasks]);
+
   if (!task || !draft) return null;
+
+  const suggestions = knownLabels.filter((l) => !draft.labels.includes(l)).slice(0, 8);
 
   const set = (patch) => setDraft((d) => ({ ...d, ...patch }));
 
   const save = () => {
     const patch = {};
     EDITABLE.forEach((k) => {
-      if (JSON.stringify(draft[k]) !== JSON.stringify(task[k])) patch[k] = draft[k];
+      const current = k === "horizon" ? horizonOf(task) : task[k];
+      if (JSON.stringify(draft[k]) !== JSON.stringify(current)) patch[k] = draft[k];
     });
     if (patch.title !== undefined && !patch.title.trim()) delete patch.title;
     if (Object.keys(patch).length) updateTask(task.id, patch);
@@ -65,8 +78,8 @@ const TaskModal = ({ taskId, onClose, onOpen }) => {
     set({ project_id: projectId || null, status: (cols.find((c) => c.kind === kind) ?? cols[0]).id });
   };
 
-  const addLabel = () => {
-    const value = labelInput.trim().replace(/^#/, "").toLowerCase();
+  const addLabel = (raw = labelInput) => {
+    const value = normalizeLabel(raw);
     if (value && !draft.labels.includes(value)) set({ labels: [...draft.labels, value] });
     setLabelInput("");
   };
@@ -204,6 +217,24 @@ const TaskModal = ({ taskId, onClose, onOpen }) => {
               ))}
             </select>
           </label>
+          <div className="field">
+            <span>Horizon</span>
+            <div className="horizon-pick" role="radiogroup" aria-label="Horizon">
+              {HORIZONS.map((h) => (
+                <button
+                  key={h.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={draft.horizon === h.value}
+                  className={`horizon-option horizon-option--${h.value}${draft.horizon === h.value ? " active" : ""}`}
+                  onClick={() => set({ horizon: h.value })}
+                >
+                  <strong>{h.icon} {h.label}</strong>
+                  <span>{h.hint}</span>
+                </button>
+              ))}
+            </div>
+          </div>
           <label className="field">
             <span>Échéance</span>
             <input type="date" value={draft.due_date ?? ""} onChange={(e) => set({ due_date: e.target.value || null })} />
@@ -222,7 +253,13 @@ const TaskModal = ({ taskId, onClose, onOpen }) => {
             <span>Étiquettes</span>
             <div className="labels-edit">
               {draft.labels.map((l) => (
-                <button key={l} className="chip chip-label" onClick={() => set({ labels: draft.labels.filter((x) => x !== l) })} title="Retirer">
+                <button
+                  key={l}
+                  className="chip chip-label"
+                  style={{ "--chip": labelColor(l) }}
+                  onClick={() => set({ labels: draft.labels.filter((x) => x !== l) })}
+                  title="Retirer"
+                >
                   #{l} ✕
                 </button>
               ))}
@@ -235,10 +272,33 @@ const TaskModal = ({ taskId, onClose, onOpen }) => {
                     addLabel();
                   }
                 }}
-                onBlur={addLabel}
+                onBlur={() => addLabel()}
                 placeholder="+ étiquette"
+                list="known-labels"
+                maxLength={24}
               />
+              <datalist id="known-labels">
+                {suggestions.map((l) => (
+                  <option key={l} value={l} />
+                ))}
+              </datalist>
             </div>
+            {suggestions.length > 0 && (
+              <div className="label-suggestions">
+                {suggestions.slice(0, 5).map((l) => (
+                  <button
+                    key={l}
+                    type="button"
+                    className="chip chip-label chip--add"
+                    style={{ "--chip": labelColor(l) }}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => addLabel(l)}
+                  >
+                    + #{l}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="field">
             <span>Temps passé</span>

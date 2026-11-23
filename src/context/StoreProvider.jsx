@@ -4,7 +4,7 @@
 // À la connexion, les données invitées sont envoyées dans le compte puis effacées localement.
 import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { newTask } from "../lib/tasks";
+import { horizonOf, newTask } from "../lib/tasks";
 import { DEFAULT_COLUMNS, uid } from "../lib/utils";
 import { StoreContext, useAuth, useToast } from "./contexts";
 
@@ -13,7 +13,7 @@ const LEGACY_KEY = "mes-notes"; // v1 de l'application
 
 const PROJECT_FIELDS = ["id", "name", "color", "icon", "columns", "position", "archived"];
 const TASK_FIELDS = [
-  "id", "project_id", "title", "description", "status", "priority", "due_date", "labels",
+  "id", "project_id", "title", "description", "status", "priority", "horizon", "due_date", "labels",
   "checklist", "position", "time_spent", "timer_started_at", "completed_at", "created_at",
 ];
 const pick = (obj, fields) =>
@@ -22,7 +22,17 @@ const pick = (obj, fields) =>
 const readGuest = () => {
   try {
     const saved = JSON.parse(localStorage.getItem(GUEST_KEY) || "null");
-    if (saved) return { projects: saved.projects ?? [], tasks: saved.tasks ?? [] };
+    if (saved) {
+      return {
+        projects: saved.projects ?? [],
+        // Tâches d'avant l'horizon : on le déduit et on retire les étiquettes techniques de la v1.
+        tasks: (saved.tasks ?? []).map((t) =>
+          t.horizon
+            ? t
+            : { ...t, horizon: horizonOf(t), labels: (t.labels ?? []).filter((l) => l !== "long terme" && l !== "rapide") },
+        ),
+      };
+    }
 
     // Reprise des tâches de la v1 (localStorage "mes-notes").
     const legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || "null");
@@ -32,7 +42,7 @@ const readGuest = () => {
         tasks: legacy.map((n) => ({
           ...newTask({ title: n.text, due_date: n.date || null }),
           status: n.completed ? "done" : "todo",
-          labels: [n.category === "long" ? "long terme" : "rapide"],
+          horizon: n.category === "long" ? "long" : "short",
           position: -Number(n.id) || 0,
         })),
       };

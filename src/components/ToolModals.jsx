@@ -121,6 +121,7 @@ const SHORTCUTS = [
   ["/", "Rechercher"],
   ["B / L", "Vue tableau / liste"],
   ["T", "Filtre « Aujourd'hui »"],
+  ["H", "Filtre horizon : tout / court / long terme"],
   ["1 … 9", "Changer d'onglet"],
   ["P", "Nouveau projet"],
   ["Échap", "Fermer une fenêtre"],
@@ -131,6 +132,7 @@ const SYNTAX = [
   ["!1  !2  !3", "Priorité urgente / haute / basse"],
   ["#client", "Projet (début du nom)"],
   ["@appel", "Étiquette"],
+  ["~court  ~long", "Horizon court terme / long terme"],
   ["sans date", "Pas d'échéance"],
 ];
 

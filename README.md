@@ -29,6 +29,7 @@ React 19 + Vite, Supabase (comptes, base, temps réel, Edge Functions), Stripe, 
 ### 1. Base de données
 Supabase → SQL Editor → exécuter `supabase/migrations/002_lovatasks.sql`
 (crée profils, projets, membres, invitations, tâches, règles RLS, RPC, et copie les anciennes `notes`).
+Puis exécuter `supabase/migrations/003_task_horizon.sql` (horizon court terme / long terme des tâches).
 
 ### 2. Connexion Google
 1. Google Cloud Console → Identifiants → ID client OAuth (application Web).

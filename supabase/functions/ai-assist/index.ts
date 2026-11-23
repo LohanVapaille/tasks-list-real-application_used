@@ -15,7 +15,9 @@ const FREE_QUOTA = Number(Deno.env.get("FREE_AI_QUOTA") ?? 10);
 const PRO_QUOTA = Number(Deno.env.get("PRO_AI_QUOTA") ?? 300);
 
 const TASK_SHAPE = `{"title": string (max 120 car.), "description": string (1-3 phrases),
-"priority": 0|1|2|3 (0 aucune, 3 urgente), "labels": string[] (1-2 mots-clés courts),
+"priority": 0|1|2|3 (0 aucune, 3 urgente),
+"horizon": "short"|"long" ("short" = action rapide bouclée en quelques jours, "long" = chantier de fond sur plusieurs semaines),
+"labels": string[] (1-2 mots-clés courts),
 "checklist": string[] (0 à 5 sous-étapes concrètes), "column": "todo"}`;
 
 const PROMPTS: Record<string, (input: Record<string, unknown>) => string> = {
@@ -38,7 +40,8 @@ DÉTAILS : ${String(description ?? "").slice(0, 2000)}`,
 
   plan: ({ tasks, today }) => `Tu es un coach de productivité. Nous sommes le ${today}.
 Voici les tâches ouvertes (JSON). Choisis au maximum 5 tâches à faire AUJOURD'HUI en
-priorisant urgence, échéances proches et dépendances logiques. Réponds UNIQUEMENT en JSON :
+priorisant urgence, échéances proches et dépendances logiques. Garde un équilibre :
+surtout des tâches "short" (court terme), mais avance aussi au moins une tâche "long" (long terme) s'il y en a. Réponds UNIQUEMENT en JSON :
 {"focus": [{"id": string, "reason": string (courte)}], "tip": string (un conseil court)}
 
 TÂCHES : ${JSON.stringify(tasks).slice(0, 12000)}`,

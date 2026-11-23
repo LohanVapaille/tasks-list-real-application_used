@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { HORIZON_BY_VALUE, horizonOf, labelColor } from "../lib/tasks";
 import { PRIORITIES, formatDue } from "../lib/utils";
 import Brand from "./Brand";
 
@@ -62,15 +63,20 @@ const PublicBoard = ({ token }) => {
               <div className="column-body">
                 {list.map((t) => {
                   const done = (t.checklist ?? []).filter((i) => i.done).length;
+                  const horizon = HORIZON_BY_VALUE[horizonOf(t)];
                   return (
-                    <div key={t.id} className={`card prio-${t.priority}${c.kind === "done" ? " is-done" : ""}`}>
+                    <div key={t.id} className={`card prio-${t.priority} horizon-${horizon.value}${c.kind === "done" ? " is-done" : ""}`}>
                       <div className="card-top">
                         <span className="card-title">{t.title}</span>
                         {t.priority > 0 && <span className={`prio-flag prio-flag--${t.priority}`}>{PRIORITIES[t.priority].short}</span>}
                       </div>
                       <div className="card-meta">
+                        <span className={`chip chip-horizon chip-horizon--${horizon.value}`}>{horizon.icon} {horizon.label}</span>
                         {t.due_date && <span className="chip">📅 {formatDue(t.due_date)}</span>}
                         {t.checklist?.length > 0 && <span className="chip">☑ {done}/{t.checklist.length}</span>}
+                        {(t.labels ?? []).map((l) => (
+                          <span key={l} className="chip chip-label" style={{ "--chip": labelColor(l) }}>#{l}</span>
+                        ))}
                       </div>
                     </div>
                   );

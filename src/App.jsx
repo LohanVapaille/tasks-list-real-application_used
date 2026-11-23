@@ -18,6 +18,7 @@ import { useAuth, useStore, useToast } from "./context/contexts";
 import StoreProvider from "./context/StoreProvider";
 import ToastProvider from "./context/ToastProvider";
 import { callFunction } from "./lib/api";
+import { GROUP_BY, HORIZONS, SORTS, horizonOf, labelColor } from "./lib/tasks";
 import { DEFAULT_COLUMNS, KIND_LABELS, todayISO, uid } from "./lib/utils";
 
 const PREFS_KEY = "lovatasks:prefs";
@@ -46,6 +47,10 @@ const Workspace = () => {
     prefs.theme ?? (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light"),
   );
   const [filters, setFilters] = useState({ today: false, urgent: false, hideDone: false });
+  const [horizon, setHorizon] = useState(prefs.horizon ?? "all");
+  const [labelFilter, setLabelFilter] = useState(null);
+  const [sort, setSort] = useState(prefs.sort ?? "manual");
+  const [groupBy, setGroupBy] = useState(prefs.groupBy ?? "date");
   const [search, setSearch] = useState("");
   const [modals, setModals] = useState([]);
   const [focusMap, setFocusMap] = useState(null);
@@ -62,11 +67,14 @@ const Workspace = () => {
 
   useEffect(() => {
     try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify({ tab, view, theme, hideGuestBanner: !guestBanner }));
+      localStorage.setItem(
+        PREFS_KEY,
+        JSON.stringify({ tab, view, theme, horizon, sort, groupBy, hideGuestBanner: !guestBanner }),
+      );
     } catch {
       // stockage indisponible
     }
-  }, [tab, view, theme, guestBanner]);
+  }, [tab, view, theme, horizon, sort, groupBy, guestBanner]);
 
   // ── Modales (pile) ────────────────────────────────────────
   const open = useCallback((type, payload) => {
@@ -119,9 +127,26 @@ const Workspace = () => {
       if (filters.today && (!t.due_date || t.due_date > today)) return false;
       if (filters.urgent && t.priority < 2) return false;
       if (filters.hideDone && kindOf(t) === "done") return false;
+      if (horizon !== "all" && horizonOf(t) !== horizon) return false;
+      if (labelFilter && !t.labels.includes(labelFilter)) return false;
       return true;
     });
-  }, [scoped, search, filters, kindOf]);
+  }, [scoped, search, filters, kindOf, horizon, labelFilter]);
+
+  // Compteurs de tâches ouvertes par horizon et par étiquette (onglet courant).
+  const facets = useMemo(() => {
+    const byHorizon = { short: 0, long: 0 };
+    const byLabel = new Map();
+    scoped.forEach((t) => {
+      if (kindOf(t) === "done") return;
+      byHorizon[horizonOf(t)]++;
+      t.labels.forEach((l) => byLabel.set(l, (byLabel.get(l) ?? 0) + 1));
+    });
+    const labels = [...byLabel.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "fr"));
+    return { byHorizon, labels };
+  }, [scoped, kindOf]);
+
+  const toggleLabel = useCallback((label) => setLabelFilter((l) => (l === label ? null : label)), []);
 
   const counts = useMemo(() => {
     const c = { all: 0, inbox: 0 };
@@ -160,6 +185,7 @@ const Workspace = () => {
         title: t.title,
         due: t.due_date,
         priority: t.priority,
+        horizon: horizonOf(t),
         project: projectsById.get(t.project_id)?.name,
         state: kindOf(t),
       }));
@@ -197,6 +223,7 @@ const Workspace = () => {
       } else if (key === "b") setView("board");
       else if (key === "l") setView("list");
       else if (key === "t") setFilters((f) => ({ ...f, today: !f.today }));
+      else if (key === "h") setHorizon((h) => ({ all: "short", short: "long", long: "all" })[h] ?? "all");
       else if (key === "p") open("newProject");
       else if (/^[1-9]$/.test(key)) {
         const ids = ["all", "inbox", ...projects.filter((p) => !p.archived).map((p) => p.id)];
@@ -284,6 +311,12 @@ const Workspace = () => {
 
   const openTask = useCallback((task) => open("task", task.id), [open]);
 
+  // Une tâche ajoutée depuis une colonne hérite des filtres actifs (horizon, étiquette).
+  const inlineDefaults = useMemo(
+    () => ({ horizon: horizon === "long" ? "long" : "short", labels: labelFilter ? [labelFilter] : [] }),
+    [horizon, labelFilter],
+  );
+
   return (
     <div className="app">
       <TopBar
@@ -318,7 +351,35 @@ const Workspace = () => {
       />
 
       <main className="workspace">
-        <QuickAdd defaultProjectId={currentProject?.id ?? null} inputRef={quickAddRef} />
+        <QuickAdd
+          defaultProjectId={currentProject?.id ?? null}
+          defaultHorizon={horizon === "long" ? "long" : "short"}
+          inputRef={quickAddRef}
+        />
+
+        <div className="horizon-tabs" role="group" aria-label="Horizon">
+          <button
+            className={`horizon-tab${horizon === "all" ? " active" : ""}`}
+            aria-pressed={horizon === "all"}
+            onClick={() => setHorizon("all")}
+            title="Toutes les tâches (H)"
+          >
+            <strong>Tout</strong>
+            <span>{facets.byHorizon.short + facets.byHorizon.long}</span>
+          </button>
+          {HORIZONS.map((h) => (
+            <button
+              key={h.value}
+              className={`horizon-tab horizon-tab--${h.value}${horizon === h.value ? " active" : ""}`}
+              aria-pressed={horizon === h.value}
+              onClick={() => setHorizon((cur) => (cur === h.value ? "all" : h.value))}
+              title={`${h.hint} (H)`}
+            >
+              <strong>{h.icon} {h.label}</strong>
+              <span>{facets.byHorizon[h.value]}</span>
+            </button>
+          ))}
+        </div>
 
         <div className="toolbar">
           <div className="seg seg--sm" role="group" aria-label="Affichage">
@@ -335,7 +396,41 @@ const Workspace = () => {
             <button className={`filter${filters.hideDone ? " active" : ""}`} aria-pressed={filters.hideDone} onClick={() => setFilters((f) => ({ ...f, hideDone: !f.hideDone }))}>
               🙈 Masquer terminées
             </button>
+            {(facets.labels.length > 0 || labelFilter) && (
+              <select
+                className={`filter filter-select${labelFilter ? " active" : ""}`}
+                value={labelFilter ?? ""}
+                onChange={(e) => setLabelFilter(e.target.value || null)}
+                aria-label="Filtrer par étiquette"
+              >
+                <option value="">🏷️ Étiquettes</option>
+                {facets.labels.map(([l, n]) => (
+                  <option key={l} value={l}>#{l} ({n})</option>
+                ))}
+                {labelFilter && !facets.labels.some(([l]) => l === labelFilter) && (
+                  <option value={labelFilter}>#{labelFilter} (0)</option>
+                )}
+              </select>
+            )}
           </div>
+          <label className="sort-select">
+            <span className="muted small">Trier</span>
+            <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Trier les tâches">
+              {SORTS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+          {view === "list" && (
+            <label className="sort-select">
+              <span className="muted small">Grouper</span>
+              <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)} aria-label="Regrouper la liste">
+                {GROUP_BY.map((g) => (
+                  <option key={g.value} value={g.value}>{g.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <button className="btn btn-sm btn-ai" onClick={planDay} disabled={planning}>
             {planning ? "Réflexion…" : "✨ Ma journée"}
           </button>
@@ -349,6 +444,16 @@ const Workspace = () => {
             </span>
           </div>
         </div>
+
+        {labelFilter && (
+          <div className="label-banner">
+            <span>
+              Filtré sur l'étiquette{" "}
+              <span className="chip chip-label" style={{ "--chip": labelColor(labelFilter) }}>#{labelFilter}</span>
+            </span>
+            <button className="link" onClick={() => setLabelFilter(null)}>Retirer le filtre</button>
+          </div>
+        )}
 
         {focusMap && (
           <div className="focus-banner">
@@ -390,11 +495,27 @@ const Workspace = () => {
             onOpen={openTask}
             focusMap={focusMap}
             onAddColumn={currentProject ? addColumn : null}
+            sort={sort}
+            onLabel={toggleLabel}
+            activeLabel={labelFilter}
+            defaults={inlineDefaults}
           />
         ) : visible.length ? (
-          <ListView tasks={visible} onOpen={openTask} showProject={activeTab === "all"} focusMap={focusMap} />
+          <ListView
+            tasks={visible}
+            onOpen={openTask}
+            showProject={activeTab === "all"}
+            focusMap={focusMap}
+            groupBy={groupBy}
+            sort={sort}
+            onLabel={toggleLabel}
+            activeLabel={labelFilter}
+          />
         ) : (
-          <p className="empty">Aucune tâche ici{search || filters.today || filters.urgent ? " avec ces filtres" : ""}.</p>
+          <p className="empty">
+            Aucune tâche ici
+            {search || filters.today || filters.urgent || horizon !== "all" || labelFilter ? " avec ces filtres" : ""}.
+          </p>
         )}
       </main>
 

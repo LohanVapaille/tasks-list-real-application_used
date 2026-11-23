@@ -1,6 +1,7 @@
 // Saisie rapide en langage naturel :
-//   "Appeler Paul demain !1 #Client @tel"
-//   → titre "Appeler Paul", échéance demain, priorité urgente, projet "Client", étiquette "tel"
+//   "Appeler Paul demain !1 #Client @tel ~court"
+//   → titre "Appeler Paul", échéance demain, priorité urgente, projet "Client", étiquette "tel",
+//     horizon court terme (~long / ~lt pour long terme, ~court / ~ct pour court terme)
 import { addDays, todayISO, toISODate } from "./utils";
 
 const WEEKDAYS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
@@ -14,7 +15,7 @@ const nextWeekday = (index) => {
 
 export const parseQuickTask = (raw, projects = []) => {
   let text = ` ${raw} `;
-  const result = { due_date: undefined, priority: undefined, project_id: undefined, labels: [] };
+  const result = { due_date: undefined, priority: undefined, project_id: undefined, horizon: undefined, labels: [] };
 
   const take = (regex, handler) => {
     text = text.replace(regex, (...args) => {
@@ -36,9 +37,18 @@ export const parseQuickTask = (raw, projects = []) => {
     result.project_id = project.id;
   });
 
+  // Horizon : ~long / ~lt  ·  ~court / ~ct
+  take(/\s~(long|lt|l)(?=\s)/gi, () => {
+    result.horizon = "long";
+  });
+  take(/\s~(court|ct|c)(?=\s)/gi, () => {
+    result.horizon = "short";
+  });
+
   // Étiquettes : @mot
   take(/\s@([^\s#@!]+)(?=\s)/g, (_m, label) => {
-    result.labels.push(label.toLowerCase());
+    const value = label.toLowerCase().slice(0, 24);
+    if (!result.labels.includes(value)) result.labels.push(value);
   });
 
   // Dates

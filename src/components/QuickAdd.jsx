@@ -1,20 +1,28 @@
 import { useMemo, useState } from "react";
 import { useStore } from "../context/contexts";
 import { parseQuickTask } from "../lib/quickParse";
+import { HORIZON_BY_VALUE } from "../lib/tasks";
 import { PRIORITIES, formatDue, todayISO } from "../lib/utils";
 
 // Saisie rapide : nom + Entrée. Date du jour par défaut, projet optionnel.
-const QuickAdd = ({ defaultProjectId, inputRef }) => {
+const QuickAdd = ({ defaultProjectId, defaultHorizon = "short", inputRef }) => {
   const { projects, addTask, projectsById } = useStore();
   const [text, setText] = useState("");
   const [date, setDate] = useState(todayISO());
   const [projectId, setProjectId] = useState(defaultProjectId ?? "");
   const [lastDefault, setLastDefault] = useState(defaultProjectId);
+  const [horizon, setHorizon] = useState(defaultHorizon);
+  const [lastHorizon, setLastHorizon] = useState(defaultHorizon);
 
   // Quand on change d'onglet, le projet présélectionné suit l'onglet.
   if (lastDefault !== defaultProjectId) {
     setLastDefault(defaultProjectId);
     setProjectId(defaultProjectId ?? "");
+  }
+  // Quand on filtre sur un horizon, les nouvelles tâches le prennent par défaut.
+  if (lastHorizon !== defaultHorizon) {
+    setLastHorizon(defaultHorizon);
+    setHorizon(defaultHorizon);
   }
 
   const activeProjects = useMemo(() => projects.filter((p) => !p.archived), [projects]);
@@ -28,6 +36,7 @@ const QuickAdd = ({ defaultProjectId, inputRef }) => {
       due_date: parsed.due_date !== undefined ? parsed.due_date : date || null,
       project_id: parsed.project_id ?? (projectId || null),
       priority: parsed.priority ?? 0,
+      horizon: parsed.horizon ?? horizon,
       labels: parsed.labels,
     });
     setText("");
@@ -36,6 +45,7 @@ const QuickAdd = ({ defaultProjectId, inputRef }) => {
   const chips = [];
   if (parsed.due_date !== undefined) chips.push(`📅 ${parsed.due_date ? formatDue(parsed.due_date) : "Sans date"}`);
   if (parsed.priority) chips.push(`🚩 ${PRIORITIES[parsed.priority].label}`);
+  if (parsed.horizon) chips.push(`${HORIZON_BY_VALUE[parsed.horizon].icon} ${HORIZON_BY_VALUE[parsed.horizon].label}`);
   if (parsed.project_id) chips.push(`${projectsById.get(parsed.project_id).icon} ${projectsById.get(parsed.project_id).name}`);
   parsed.labels.forEach((l) => chips.push(`🏷️ ${l}`));
 
@@ -47,10 +57,20 @@ const QuickAdd = ({ defaultProjectId, inputRef }) => {
           ref={inputRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Ajouter une tâche…  ex : Appeler le client demain !1 @tel   ( N )"
+          placeholder="Ajouter une tâche…  ex : Appeler le client demain !1 @tel ~court   ( N )"
           aria-label="Nouvelle tâche"
           maxLength={300}
         />
+        <button
+          type="button"
+          className={`quickadd-horizon quickadd-horizon--${parsed.horizon ?? horizon}`}
+          onClick={() => setHorizon((h) => (h === "long" ? "short" : "long"))}
+          title={`${HORIZON_BY_VALUE[parsed.horizon ?? horizon].hint} — cliquer pour changer (ou tape ~long / ~court)`}
+          aria-label={`Horizon : ${HORIZON_BY_VALUE[parsed.horizon ?? horizon].label}`}
+        >
+          {HORIZON_BY_VALUE[parsed.horizon ?? horizon].icon}
+          <span className="hide-sm"> {HORIZON_BY_VALUE[parsed.horizon ?? horizon].label}</span>
+        </button>
         <input
           type="date"
           className="quickadd-date"

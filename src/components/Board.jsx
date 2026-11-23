@@ -11,6 +11,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { useStore } from "../context/contexts";
+import { compareTasks } from "../lib/tasks";
 import { todayISO } from "../lib/utils";
 import TaskCard from "./TaskCard";
 
@@ -99,7 +100,7 @@ const Column = ({ column, tasks, overId, cardProps, onInlineAdd, showAll, onShow
 /**
  * mode "project" : colonnes du projet ; mode "all" : colonnes par type (à faire / en cours / terminé).
  */
-const Board = ({ columns, tasks, mode, projectId, onOpen, focusMap, onAddColumn }) => {
+const Board = ({ columns, tasks, mode, projectId, onOpen, focusMap, onAddColumn, sort = "manual", onLabel, activeLabel, defaults }) => {
   const { projectsById, columnsFor, kindOf, updateTask, toggleDone, addTask } = useStore();
   const [activeId, setActiveId] = useState(null);
   const [overId, setOverId] = useState(null);
@@ -121,9 +122,10 @@ const Board = ({ columns, tasks, mode, projectId, onOpen, focusMap, onAddColumn 
   const groups = useMemo(() => {
     const map = new Map(columns.map((c) => [c.key, []]));
     tasks.forEach((t) => map.get(keyOf(t))?.push(t));
-    map.forEach((list) => list.sort((a, b) => a.position - b.position));
+    const cmp = compareTasks(sort);
+    map.forEach((list) => list.sort(cmp));
     return map;
-  }, [columns, tasks, keyOf]);
+  }, [columns, tasks, keyOf, sort]);
 
   const tasksById = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
   const activeTask = activeId ? tasksById.get(activeId) : null;
@@ -149,7 +151,11 @@ const Board = ({ columns, tasks, mode, projectId, onOpen, focusMap, onAddColumn 
 
     const list = (groups.get(targetKey) ?? []).filter((t) => t.id !== task.id);
     let position;
-    if (beforeId) {
+    if (sort !== "manual") {
+      // Tri automatique : on change seulement l'état, l'ordre suit le tri choisi.
+      if (targetKey === keyOf(task)) return;
+      position = list.length ? Math.max(...list.map((t) => t.position)) + 1 : 0;
+    } else if (beforeId) {
       const index = list.findIndex((t) => t.id === beforeId);
       const next = list[index];
       const prev = list[index - 1];
@@ -179,6 +185,8 @@ const Board = ({ columns, tasks, mode, projectId, onOpen, focusMap, onAddColumn 
       focus: focusMap?.[task.id],
       onOpen,
       onToggle: toggleDone,
+      onLabel,
+      activeLabel,
     };
   };
 
@@ -187,11 +195,12 @@ const Board = ({ columns, tasks, mode, projectId, onOpen, focusMap, onAddColumn 
       ? null
       : (column, title, list) =>
           addTask({
+            ...defaults,
             title,
             status: column.key,
             project_id: projectId ?? null,
             due_date: todayISO(),
-            position: list.length ? list[list.length - 1].position + 1 : 0,
+            position: list.length ? Math.max(...list.map((t) => t.position)) + 1 : 0,
           });
 
   return (

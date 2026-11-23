@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth, useStore, useToast } from "../context/contexts";
 import { callFunction } from "../lib/api";
+import { HORIZON_BY_VALUE } from "../lib/tasks";
 import { DEFAULT_COLUMNS, PRIORITIES, PROJECT_COLORS, uid } from "../lib/utils";
 import Modal from "./Modal";
 
@@ -29,6 +30,7 @@ const sanitize = (result) => {
       title: String(t.title).slice(0, 300),
       description: String(t.description ?? ""),
       priority: [0, 1, 2, 3].includes(Number(t.priority)) ? Number(t.priority) : 0,
+      horizon: t.horizon === "long" ? "long" : "short",
       labels: (Array.isArray(t.labels) ? t.labels : []).slice(0, 3).map((l) => String(l).toLowerCase().slice(0, 24)),
       checklist: (Array.isArray(t.checklist) ? t.checklist : []).slice(0, 8).map((text) => ({ id: uid(), text: String(text), done: false })),
       column: columns.find((c) => c.source === t.column)?.id ?? columns[0].id,
@@ -86,6 +88,7 @@ const AiBacklogModal = ({ onClose, onOpen, onCreated }) => {
         title: t.title,
         description: t.description,
         priority: t.priority,
+        horizon: t.horizon,
         labels: t.labels,
         checklist: t.checklist,
         status: t.column,
@@ -150,6 +153,9 @@ const AiBacklogModal = ({ onClose, onOpen, onCreated }) => {
                 <div>
                   <strong>{t.title}</strong>
                   {t.priority > 0 && <span className={`prio-flag prio-flag--${t.priority}`}>{PRIORITIES[t.priority].short}</span>}
+                  <span className={`chip chip-horizon chip-horizon--${t.horizon}`}>
+                    {HORIZON_BY_VALUE[t.horizon].icon} {HORIZON_BY_VALUE[t.horizon].label}
+                  </span>
                   {t.description && <p className="muted small">{t.description}</p>}
                   {t.checklist.length > 0 && <p className="muted small">☑ {t.checklist.map((i) => i.text).join(" · ")}</p>}
                 </div>
